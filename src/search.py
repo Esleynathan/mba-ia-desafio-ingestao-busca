@@ -3,7 +3,10 @@ from dotenv import load_dotenv
 from langchain_openai import OpenAIEmbeddings, ChatOpenAI
 from langchain_postgres import PGVector
 from langchain.prompts import PromptTemplate
-from langchain.chains.retrieval_qa.base import RetrievalQA
+# from langchain.chains.retrieval_qa.base import RetrievalQA
+
+from langchain_core.runnables import RunnablePassthrough
+from langchain_core.output_parsers import StrOutputParser
 
 def search_prompt(question):
     load_dotenv()
@@ -60,16 +63,28 @@ def search_prompt(question):
     llm = ChatOpenAI(model="gpt-4o-mini")
 
     # 3. Criar a chain completa
-    chain = RetrievalQA.from_chain_type(
-        llm=llm,
-        chain_type="stuff",
-        retriever=retriever,
-        chain_type_kwargs={"prompt": prompt}
+    # chain = RetrievalQA.from_chain_type(
+    #     llm=llm,
+    #     chain_type="stuff",
+    #     retriever=retriever,
+    #     chain_type_kwargs={"prompt": prompt}
+    # )
+
+    chain = (
+        {
+            "context": retriever | (lambda docs: "\n\n".join(doc.page_content for doc in docs)),
+            "question": RunnablePassthrough()
+        }
+        | prompt
+        | llm
+        | StrOutputParser()
     )
 
     # 4. Usar a chain
-    resultado = chain.invoke({"query": question})
-    return resultado["result"]
+    # resultado = chain.invoke({"query": question})
+    resultado = chain.invoke(question)
+
+    return resultado
 
 
     # ================================================
